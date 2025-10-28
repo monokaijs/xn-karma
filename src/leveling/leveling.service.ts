@@ -187,5 +187,12 @@ export class LevelingService {
 
     return higherRankedCount + 1;
   }
+
+  async deductPoints(userId: string, guildId: string, points: number): Promise<User> {
+    const user = await this.getOrCreateUser(userId, guildId);
+    user.totalPoints = Math.max(0, user.totalPoints - points);
+    await user.save();
+    return user;
+  }
 }
 

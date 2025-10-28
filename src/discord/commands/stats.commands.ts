@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Context, SlashCommand, SlashCommandContext, Options } from 'necord';
+import { Context, SlashCommand, SlashCommandContext, Options, NumberOption } from 'necord';
 import { EmbedBuilder, User, AttachmentBuilder } from 'discord.js';
 import { LevelingService } from '../../leveling/leveling.service';
 import { createCanvas, loadImage, Image } from '@napi-rs/canvas';
@@ -8,6 +8,16 @@ import * as fs from 'fs';
 
 class StatsDto {
   user?: User;
+}
+
+class GachaDto {
+  @NumberOption({
+    name: 'points',
+    description: 'Number of points to bet',
+    required: true,
+    min_value: 1,
+  })
+  points: number;
 }
 
 @Injectable()
@@ -247,6 +257,79 @@ export class StatsCommands {
         content: 'An error occurred while generating the image.',
       });
     }
+  }
+
+  @SlashCommand({
+    name: 'gacha',
+    description: 'Try your luck! Win x50 points or lose your bet',
+  })
+  async onGacha(
+    @Context() [interaction]: SlashCommandContext,
+    @Options() dto: GachaDto,
+  ) {
+    const guildId = interaction.guildId;
+
+    if (!guildId) {
+      return interaction.reply({
+        content: 'This command can only be used in a server!',
+        ephemeral: true,
+      });
+    }
+
+    const userId = interaction.user.id;
+    const betPoints = dto.points;
+
+    const stats = await this.levelingService.getUserStats(userId, guildId);
+
+    if (stats.totalPoints < betPoints) {
+      return interaction.reply({
+        content: `Bạn không đủ điểm! Bạn có **${stats.totalPoints}** điểm nhưng cần **${betPoints}** điểm để chơi.`,
+        ephemeral: true,
+      });
+    }
+
+    const winningNumber = Math.floor(Math.random() * 100) + 1;
+    let currentNumber = Math.floor(Math.random() * 100) + 1;
+
+    await interaction.reply({
+      content: `🎰 **GACHA**\nSố trúng thưởng: **${winningNumber}**\nQuay số: **${currentNumber}**`,
+    });
+
+    const animationDuration = 3000;
+    const updateInterval = 50;
+    const totalUpdates = animationDuration / updateInterval;
+    let updateCount = 0;
+
+    const animationInterval = setInterval(async () => {
+      updateCount++;
+
+      if (updateCount >= totalUpdates) {
+        clearInterval(animationInterval);
+
+        const won = currentNumber === winningNumber;
+
+        if (won) {
+          const winAmount = betPoints * 50;
+          await this.levelingService.addPoints(userId, guildId, winAmount, 'gacha-win');
+
+          await interaction.editReply({
+            content: `🎰 **GACHA**\nSố trúng thưởng: **${winningNumber}**\nQuay số: **${currentNumber}**\n\n🎉 **CHÚC MỪNG!** Bạn đã thắng **${winAmount}** điểm! (x50)`,
+          });
+        } else {
+          await this.levelingService.deductPoints(userId, guildId, betPoints);
+
+          await interaction.editReply({
+            content: `🎰 **GACHA**\nSố trúng thưởng: **${winningNumber}**\nQuay số: **${currentNumber}**\n\n😢 **CHÚC BẠN MAY MẮN LẦN SAU!** Bạn đã mất **${betPoints}** điểm.`,
+          });
+        }
+      } else {
+        currentNumber = Math.floor(Math.random() * 100) + 1;
+
+        await interaction.editReply({
+          content: `🎰 **GACHA**\nSố trúng thưởng: **${winningNumber}**\nQuay số: **${currentNumber}**`,
+        }).catch(() => {});
+      }
+    }, updateInterval);
   }
 
   private drawResizedAndCroppedAvatar(
