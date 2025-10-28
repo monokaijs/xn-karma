@@ -231,7 +231,8 @@ export class StatsCommands {
       }
 
       const framePath = path.join(process.cwd(), 'src', 'assets', 'frame-01.png');
-      const frame = await loadImage(framePath);
+      const frameBuffer = fs.readFileSync(framePath);
+      const frame = await loadImage(frameBuffer);
       ctx.drawImage(frame, 0, 0, 960, 540);
 
       const buffer = canvas.toBuffer('image/jpeg', 90);
