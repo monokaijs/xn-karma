@@ -7,6 +7,7 @@ import { LevelingService } from '../../leveling/leveling.service';
 @Injectable()
 export class MessageListener {
   private readonly logger = new Logger(MessageListener.name);
+  private processedMessages = new Set<string>();
 
   constructor(
     private levelingService: LevelingService,
@@ -21,6 +22,14 @@ export class MessageListener {
       if (!message.guild) return;
       if (message.channel.isDMBased()) return;
       if (message.channel.name?.toLowerCase().includes('spam')) return;
+
+      const messageKey = `${message.id}-${message.author.id}`;
+      if (this.processedMessages.has(messageKey)) {
+        this.logger.debug(`Duplicate message detected: ${messageKey}`);
+        return;
+      }
+      this.processedMessages.add(messageKey);
+      setTimeout(() => this.processedMessages.delete(messageKey), 5000);
 
       const userId = message.author.id;
       const guildId = message.guild.id;
