@@ -230,7 +230,7 @@ export class StatsCommands {
         }
       }
 
-      const framePath = path.join(process.cwd(), 'src', 'assets', 'frame-01.png');
+      const framePath = path.join(__dirname, '..', '..', 'assets', 'frame-01.png');
       const frameBuffer = fs.readFileSync(framePath);
       const frame = await loadImage(frameBuffer);
       ctx.drawImage(frame, 0, 0, 960, 540);
