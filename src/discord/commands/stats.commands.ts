@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Context, SlashCommand, SlashCommandContext, Options, NumberOption } from 'necord';
+import { Context, SlashCommand, SlashCommandContext, Options, NumberOption, UserOption } from 'necord';
 import { EmbedBuilder, User, AttachmentBuilder } from 'discord.js';
 import { LevelingService } from '../../leveling/leveling.service';
 import { createCanvas, loadImage, Image } from '@napi-rs/canvas';
@@ -18,6 +18,15 @@ class GachaDto {
     min_value: 1,
   })
   points: number;
+}
+
+class ZoomDto {
+  @UserOption({
+    name: 'user',
+    description: 'User whose avatar to zoom',
+    required: true,
+  })
+  user: User;
 }
 
 @Injectable()
@@ -330,6 +339,26 @@ export class StatsCommands {
         }).catch(() => {});
       }
     }, updateInterval);
+  }
+
+  @SlashCommand({
+    name: 'zoom',
+    description: 'Zoom the avatar of a user',
+  })
+  async onZoom(
+    @Context() [interaction]: SlashCommandContext,
+    @Options() dto: ZoomDto,
+  ) {
+    const targetUser = dto.user;
+    const avatarURL = targetUser.displayAvatarURL({ extension: 'png', size: 1024 });
+
+    const embed = new EmbedBuilder()
+      .setColor('#5865F2')
+      .setTitle(`🔍 Avatar of ${targetUser.username}`)
+      .setImage(avatarURL)
+      .setTimestamp();
+
+    return interaction.reply({ embeds: [embed] });
   }
 
   private drawResizedAndCroppedAvatar(
