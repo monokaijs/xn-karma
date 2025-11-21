@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Context, SlashCommand, SlashCommandContext, Options, NumberOption, UserOption } from 'necord';
-import { EmbedBuilder, User, AttachmentBuilder } from 'discord.js';
+import { EmbedBuilder, User, AttachmentBuilder, GuildMember } from 'discord.js';
 import { LevelingService } from '../../leveling/leveling.service';
 import { createCanvas, loadImage, Image } from '@napi-rs/canvas';
 import * as path from 'path';
@@ -356,6 +356,60 @@ export class StatsCommands {
       .setColor('#5865F2')
       .setTitle(`🔍 Avatar of ${targetUser.username}`)
       .setImage(avatarURL)
+      .setTimestamp();
+
+    return interaction.reply({ embeds: [embed] });
+  }
+
+  @SlashCommand({
+    name: 'random-team',
+    description: 'Split voice channel participants into two random teams',
+  })
+  async onRandomTeam(@Context() [interaction]: SlashCommandContext) {
+    const member = interaction.member as GuildMember;
+
+    if (!member.voice.channel) {
+      return interaction.reply({
+        content: 'You must be in a voice channel to use this command!',
+        ephemeral: true,
+      });
+    }
+
+    const voiceChannel = member.voice.channel;
+    const members = Array.from(voiceChannel.members.values()).filter(m => !m.user.bot);
+
+    if (members.length < 2) {
+      return interaction.reply({
+        content: 'Not enough participants in the voice channel! Need at least 2 people.',
+        ephemeral: true,
+      });
+    }
+
+    const shuffled = [...members].sort(() => Math.random() - 0.5);
+
+    const team1Size = Math.ceil(shuffled.length / 2);
+    const team1 = shuffled.slice(0, team1Size);
+    const team2 = shuffled.slice(team1Size);
+
+    const team1List = team1.map(m => `• ${m.user.username}`).join('\n');
+    const team2List = team2.map(m => `• ${m.user.username}`).join('\n');
+
+    const embed = new EmbedBuilder()
+      .setColor('#5865F2')
+      .setTitle('🎲 Random Teams')
+      .setDescription(`Split ${members.length} participants into 2 teams`)
+      .addFields(
+        {
+          name: `Team 1 (${team1.length} members)`,
+          value: team1List,
+          inline: true,
+        },
+        {
+          name: `Team 2 (${team2.length} members)`,
+          value: team2List,
+          inline: true,
+        },
+      )
       .setTimestamp();
 
     return interaction.reply({ embeds: [embed] });
