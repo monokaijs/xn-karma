@@ -7,6 +7,7 @@ import { MessageListener } from './listeners/message.listener';
 import { VoiceListener } from './listeners/voice.listener';
 import { InviteListener } from './listeners/invite.listener';
 import { StatsCommands } from './commands/stats.commands';
+import { StayCommands } from './commands/stay.commands';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { StatsCommands } from './commands/stats.commands';
     }),
     LevelingModule,
   ],
-  providers: [MessageListener, VoiceListener, InviteListener, StatsCommands],
+  providers: [MessageListener, VoiceListener, InviteListener, StatsCommands, StayCommands],
 })
 export class DiscordModule {}
 
