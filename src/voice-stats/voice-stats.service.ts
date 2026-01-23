@@ -18,7 +18,7 @@ export class VoiceStatsService {
       channelId,
       joinedAt: new Date(),
     });
-    this.logger.debug(`Recorded voice join for user ${userId} in channel ${channelId}`);
+    this.logger.log(`Created voice session ${session._id} for user ${userId} in channel ${channelId}`);
     return session;
   }
 

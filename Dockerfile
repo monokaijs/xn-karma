@@ -1,6 +1,6 @@
 FROM node:22-alpine AS build-stage
 
-WORKDIR /bills-check
+WORKDIR /app
 
 COPY package.json .
 
@@ -12,12 +12,11 @@ RUN npm run build
 
 FROM node:22-alpine AS prod-stage
 
-COPY --from=build-stage /bills-check/dist /bills-check/dist
-COPY --from=build-stage /bills-check/package.json /bills-check/package.json
+COPY --from=build-stage /app/dist /app/dist
+COPY --from=build-stage /app/package.json /app/package.json
 
-WORKDIR /bills-check
+WORKDIR /app
 
-RUN npm install --production \
-    && npm install -g pm2
+RUN npm install --production
 
-CMD ["pm2-runtime", "dist/main.js", "-i", "max"]
+CMD ["node", "dist/main.js"]

@@ -67,13 +67,15 @@ export class VoiceListener {
 
   private async handleVoiceJoin(userId: string, guildId: string, channelId: string) {
     try {
+      this.logger.log(`Recording voice join: user=${userId}, guild=${guildId}, channel=${channelId}`);
+
       const user = await this.levelingService.getOrCreateUser(userId, guildId);
       user.voiceJoinTime = new Date();
       await user.save();
 
       await this.voiceStatsService.recordJoin(userId, guildId, channelId);
 
-      this.logger.debug(`User ${userId} joined voice channel ${channelId}`);
+      this.logger.log(`Successfully recorded voice join for user ${userId} in channel ${channelId}`);
     } catch (error) {
       this.logger.error(`Error handling voice join for user ${userId}: ${error.message}`, error.stack);
     }
