@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { On, Once } from 'necord';
-import { Client, VoiceState, ChannelType } from 'discord.js';
+import { Client, VoiceState, ChannelType, DMChannel, NonThreadGuildBasedChannel } from 'discord.js';
 import { ConfigService } from '@nestjs/config';
 import { LevelingService } from '../../leveling/leveling.service';
 import { VoiceStatsService } from '../../voice-stats/voice-stats.service';
@@ -43,6 +43,20 @@ export class VoiceListener {
       this.logger.log('Finished scanning existing voice channel members');
     } catch (error) {
       this.logger.error(`Error scanning voice channels on startup: ${error.message}`, error.stack);
+    }
+  }
+
+  @On('channelDelete')
+  async onChannelDelete([channel]: [DMChannel | NonThreadGuildBasedChannel]) {
+    try {
+      if (channel.isDMBased()) return;
+
+      if (channel.type === ChannelType.GuildVoice || channel.type === ChannelType.GuildStageVoice) {
+        this.logger.log(`Voice channel ${channel.name} (${channel.id}) deleted, closing active sessions...`);
+        await this.voiceStatsService.closeSessionsByChannel(channel.id);
+      }
+    } catch (error) {
+      this.logger.error(`Error handling channel delete: ${error.message}`, error.stack);
     }
   }
 

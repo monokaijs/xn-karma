@@ -1,15 +1,78 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { VoiceSession } from '../database/schemas/voice-session.schema';
 
 @Injectable()
-export class VoiceStatsService {
+export class VoiceStatsService implements OnModuleInit {
   private readonly logger = new Logger(VoiceStatsService.name);
 
   constructor(
     @InjectModel(VoiceSession.name) private voiceSessionModel: Model<VoiceSession>,
   ) { }
+
+  async onModuleInit() {
+    await this.cleanupDuplicateSessions();
+  }
+
+  async cleanupDuplicateSessions(): Promise<number> {
+    this.logger.log('Starting duplicate session cleanup...');
+
+    const duplicates = await this.voiceSessionModel.aggregate([
+      {
+        $group: {
+          _id: {
+            userId: '$userId',
+            channelId: '$channelId',
+            joinedAt: '$joinedAt',
+          },
+          count: { $sum: 1 },
+          ids: { $push: '$_id' },
+        },
+      },
+      {
+        $match: { count: { $gt: 1 } },
+      },
+    ]);
+
+    let deletedCount = 0;
+
+    for (const dup of duplicates) {
+      const idsToDelete = dup.ids.slice(1);
+      await this.voiceSessionModel.deleteMany({ _id: { $in: idsToDelete } });
+      deletedCount += idsToDelete.length;
+    }
+
+    if (deletedCount > 0) {
+      this.logger.log(`Cleaned up ${deletedCount} duplicate sessions`);
+    } else {
+      this.logger.log('No duplicate sessions found');
+    }
+
+    return deletedCount;
+  }
+
+  async closeSessionsByChannel(channelId: string): Promise<number> {
+    const now = new Date();
+
+    const activeSessions = await this.voiceSessionModel.find({
+      channelId,
+      leftAt: { $exists: false },
+    });
+
+    for (const session of activeSessions) {
+      const duration = Math.floor((now.getTime() - session.joinedAt.getTime()) / 1000);
+      session.leftAt = now;
+      session.duration = duration;
+      await session.save();
+    }
+
+    if (activeSessions.length > 0) {
+      this.logger.log(`Closed ${activeSessions.length} active sessions for deleted channel ${channelId}`);
+    }
+
+    return activeSessions.length;
+  }
 
   async recordJoin(userId: string, guildId: string, channelId: string): Promise<VoiceSession> {
     const session = await this.voiceSessionModel.create({
