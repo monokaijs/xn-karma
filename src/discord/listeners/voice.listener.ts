@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { On } from 'necord';
-import { VoiceState } from 'discord.js';
+import { On, Once } from 'necord';
+import { Client, VoiceState, ChannelType } from 'discord.js';
 import { ConfigService } from '@nestjs/config';
 import { LevelingService } from '../../leveling/leveling.service';
 import { VoiceStatsService } from '../../voice-stats/voice-stats.service';
@@ -13,7 +13,38 @@ export class VoiceListener {
     private levelingService: LevelingService,
     private configService: ConfigService,
     private voiceStatsService: VoiceStatsService,
+    private client: Client,
   ) { }
+
+  @Once('ready')
+  async onReady() {
+    this.logger.log('Bot ready, scanning existing voice channel members...');
+
+    try {
+      for (const guild of this.client.guilds.cache.values()) {
+        for (const channel of guild.channels.cache.values()) {
+          if (channel.type !== ChannelType.GuildVoice && channel.type !== ChannelType.GuildStageVoice) {
+            continue;
+          }
+
+          const voiceChannel = channel;
+          for (const [memberId, member] of voiceChannel.members) {
+            if (member.user.bot) continue;
+
+            const hasActiveSession = await this.voiceStatsService.hasActiveSession(memberId, guild.id);
+            if (!hasActiveSession) {
+              await this.voiceStatsService.recordJoin(memberId, guild.id, channel.id);
+              this.logger.debug(`Recorded existing voice member ${memberId} in channel ${channel.name}`);
+            }
+          }
+        }
+      }
+
+      this.logger.log('Finished scanning existing voice channel members');
+    } catch (error) {
+      this.logger.error(`Error scanning voice channels on startup: ${error.message}`, error.stack);
+    }
+  }
 
   @On('voiceStateUpdate')
   async onVoiceStateUpdate([oldState, newState]: [VoiceState, VoiceState]) {
@@ -88,4 +119,3 @@ export class VoiceListener {
     }
   }
 }
-

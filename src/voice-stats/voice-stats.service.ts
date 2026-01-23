@@ -45,6 +45,15 @@ export class VoiceStatsService {
     return session;
   }
 
+  async hasActiveSession(userId: string, guildId: string): Promise<boolean> {
+    const session = await this.voiceSessionModel.findOne({
+      userId,
+      guildId,
+      leftAt: { $exists: false },
+    });
+    return !!session;
+  }
+
   async getTopVoiceUsers(guildId: string, limit: number = 5): Promise<Array<{
     userId: string;
     totalDuration: number;
