@@ -59,17 +59,36 @@ export class VoiceStatsService {
     totalDuration: number;
     sessionCount: number;
   }>> {
+    const now = new Date();
+
     const result = await this.voiceSessionModel.aggregate([
       {
         $match: {
           guildId,
-          leftAt: { $exists: true },
+        },
+      },
+      {
+        $addFields: {
+          calculatedDuration: {
+            $cond: {
+              if: { $ifNull: ['$leftAt', false] },
+              then: '$duration',
+              else: {
+                $floor: {
+                  $divide: [
+                    { $subtract: [now, '$joinedAt'] },
+                    1000,
+                  ],
+                },
+              },
+            },
+          },
         },
       },
       {
         $group: {
           _id: '$userId',
-          totalDuration: { $sum: '$duration' },
+          totalDuration: { $sum: '$calculatedDuration' },
           sessionCount: { $sum: 1 },
         },
       },
