@@ -3,11 +3,13 @@ import { NecordModule } from 'necord';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { IntentsBitField } from 'discord.js';
 import { LevelingModule } from '../leveling/leveling.module';
+import { VoiceStatsModule } from '../voice-stats/voice-stats.module';
 import { MessageListener } from './listeners/message.listener';
 import { VoiceListener } from './listeners/voice.listener';
 import { InviteListener } from './listeners/invite.listener';
 import { StatsCommands } from './commands/stats.commands';
 import { StayCommands } from './commands/stay.commands';
+import { VoiceStatsCommands } from './commands/voice-stats.commands';
 
 @Module({
   imports: [
@@ -28,8 +30,10 @@ import { StayCommands } from './commands/stay.commands';
       inject: [ConfigService],
     }),
     LevelingModule,
+    VoiceStatsModule,
   ],
-  providers: [MessageListener, VoiceListener, InviteListener, StatsCommands, StayCommands],
+  providers: [MessageListener, VoiceListener, InviteListener, StatsCommands, StayCommands, VoiceStatsCommands],
 })
-export class DiscordModule {}
+export class DiscordModule { }
+
 

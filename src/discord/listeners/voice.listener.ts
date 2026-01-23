@@ -3,6 +3,7 @@ import { On } from 'necord';
 import { VoiceState } from 'discord.js';
 import { ConfigService } from '@nestjs/config';
 import { LevelingService } from '../../leveling/leveling.service';
+import { VoiceStatsService } from '../../voice-stats/voice-stats.service';
 
 @Injectable()
 export class VoiceListener {
@@ -11,7 +12,8 @@ export class VoiceListener {
   constructor(
     private levelingService: LevelingService,
     private configService: ConfigService,
-  ) {}
+    private voiceStatsService: VoiceStatsService,
+  ) { }
 
   @On('voiceStateUpdate')
   async onVoiceStateUpdate([oldState, newState]: [VoiceState, VoiceState]) {
@@ -23,7 +25,7 @@ export class VoiceListener {
       const guildId = newState.guild.id;
 
       if (!oldState.channel && newState.channel) {
-        await this.handleVoiceJoin(userId, guildId);
+        await this.handleVoiceJoin(userId, guildId, newState.channel.id);
       } else if (oldState.channel && !newState.channel) {
         await this.handleVoiceLeave(userId, guildId);
       }
@@ -32,12 +34,15 @@ export class VoiceListener {
     }
   }
 
-  private async handleVoiceJoin(userId: string, guildId: string) {
+  private async handleVoiceJoin(userId: string, guildId: string, channelId: string) {
     try {
       const user = await this.levelingService.getOrCreateUser(userId, guildId);
       user.voiceJoinTime = new Date();
       await user.save();
-      this.logger.debug(`User ${userId} joined voice channel`);
+
+      await this.voiceStatsService.recordJoin(userId, guildId, channelId);
+
+      this.logger.debug(`User ${userId} joined voice channel ${channelId}`);
     } catch (error) {
       this.logger.error(`Error handling voice join for user ${userId}: ${error.message}`, error.stack);
     }
@@ -76,6 +81,8 @@ export class VoiceListener {
         user.voiceJoinTime = undefined;
         await user.save();
       }
+
+      await this.voiceStatsService.recordLeave(userId, guildId);
     } catch (error) {
       this.logger.error(`Error handling voice leave for user ${userId}: ${error.message}`, error.stack);
     }
