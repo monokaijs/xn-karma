@@ -111,6 +111,64 @@ export class VoiceStatsService {
     return result;
   }
 
+  async getTopVoiceUsersByChannel(guildId: string, channelId: string, limit: number = 5): Promise<Array<{
+    userId: string;
+    totalDuration: number;
+    sessionCount: number;
+  }>> {
+    const now = new Date();
+
+    const result = await this.voiceSessionModel.aggregate([
+      {
+        $match: {
+          guildId,
+          channelId,
+        },
+      },
+      {
+        $addFields: {
+          calculatedDuration: {
+            $cond: {
+              if: { $ifNull: ['$leftAt', false] },
+              then: '$duration',
+              else: {
+                $floor: {
+                  $divide: [
+                    { $subtract: [now, '$joinedAt'] },
+                    1000,
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $group: {
+          _id: '$userId',
+          totalDuration: { $sum: '$calculatedDuration' },
+          sessionCount: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { totalDuration: -1 },
+      },
+      {
+        $limit: limit,
+      },
+      {
+        $project: {
+          userId: '$_id',
+          totalDuration: 1,
+          sessionCount: 1,
+          _id: 0,
+        },
+      },
+    ]);
+
+    return result;
+  }
+
   async getUserVoiceStats(userId: string, guildId: string): Promise<{
     totalDuration: number;
     sessionCount: number;

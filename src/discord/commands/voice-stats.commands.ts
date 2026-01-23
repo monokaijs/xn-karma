@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Context, SlashCommand, SlashCommandContext } from 'necord';
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, GuildMember } from 'discord.js';
 import { VoiceStatsService } from '../../voice-stats/voice-stats.service';
 
 @Injectable()
@@ -9,7 +9,7 @@ export class VoiceStatsCommands {
 
   @SlashCommand({
     name: 'voice-stats',
-    description: 'Show top 5 users with longest voice channel time',
+    description: 'Show top 5 users with longest time in your current voice channel',
   })
   async onVoiceStats(@Context() [interaction]: SlashCommandContext) {
     const guildId = interaction.guildId;
@@ -21,11 +21,23 @@ export class VoiceStatsCommands {
       });
     }
 
-    const topUsers = await this.voiceStatsService.getTopVoiceUsers(guildId, 5);
+    const member = interaction.member as GuildMember;
+
+    if (!member.voice.channel) {
+      return interaction.reply({
+        content: 'You must be in a voice channel to use this command!',
+        ephemeral: true,
+      });
+    }
+
+    const channelId = member.voice.channel.id;
+    const channelName = member.voice.channel.name;
+
+    const topUsers = await this.voiceStatsService.getTopVoiceUsersByChannel(guildId, channelId, 5);
 
     if (topUsers.length === 0) {
       return interaction.reply({
-        content: 'No voice activity recorded yet!',
+        content: `No voice activity recorded yet in **${channelName}**!`,
         ephemeral: true,
       });
     }
@@ -43,10 +55,10 @@ export class VoiceStatsCommands {
 
     const embed = new EmbedBuilder()
       .setColor('#9B59B6')
-      .setTitle('🎙️ Voice Channel Leaderboard')
+      .setTitle(`🎙️ Voice Stats: ${channelName}`)
       .setDescription(leaderboardText.join('\n\n'))
       .setTimestamp()
-      .setFooter({ text: 'Join voice channels to climb the ranks!' });
+      .setFooter({ text: 'Stats for this voice channel only' });
 
     return interaction.reply({ embeds: [embed] });
   }
