@@ -73,6 +73,8 @@ export class VoiceListener {
         await this.handleVoiceJoin(userId, guildId, newState.channel.id);
       } else if (oldState.channel && !newState.channel) {
         await this.handleVoiceLeave(userId, guildId);
+      } else if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
+        await this.handleVoiceSwitch(userId, guildId, oldState.channel.id, newState.channel.id);
       }
     } catch (error) {
       this.logger.error(`Error processing voice state update: ${error.message}`, error.stack);
@@ -132,6 +134,20 @@ export class VoiceListener {
       await this.voiceStatsService.recordLeave(userId, guildId);
     } catch (error) {
       this.logger.error(`Error handling voice leave for user ${userId}: ${error.message}`, error.stack);
+    }
+  }
+
+  private async handleVoiceSwitch(userId: string, guildId: string, oldChannelId: string, newChannelId: string) {
+    try {
+      this.logger.log(`User ${userId} switching from channel ${oldChannelId} to ${newChannelId}`);
+
+      await this.voiceStatsService.recordLeave(userId, guildId);
+
+      await this.voiceStatsService.recordJoin(userId, guildId, newChannelId);
+
+      this.logger.log(`Successfully recorded channel switch for user ${userId}`);
+    } catch (error) {
+      this.logger.error(`Error handling voice switch for user ${userId}: ${error.message}`, error.stack);
     }
   }
 }
